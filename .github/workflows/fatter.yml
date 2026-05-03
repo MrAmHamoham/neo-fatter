@@ -1,10 +1,10 @@
-name: Split and Commit NeoForge Installer
+name: Build, Split, and Commit NeoForge
 
 on:
   workflow_dispatch:
     inputs:
-      neoforge_version:
-        description: 'NeoForge Version'
+      version:
+        description: 'NeoForge version'
         required: true
         default: '21.1.228'
 
@@ -12,70 +12,38 @@ permissions:
   contents: write
 
 jobs:
-  split-and-commit:
+  build:
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '21'
-        
-    - name: Download and generate fat installer
-      run: |
-        VERSION="${{ github.event.inputs.neoforge_version }}"
-        wget "https://maven.neoforged.net/releases/net/neoforged/neoforge/${VERSION}/neoforge-${VERSION}-installer.jar"
-        
-        java -jar "neoforge-${VERSION}-installer.jar" \
-          --fat \
-          --fat-include-minecraft \
-          --fat-include-minecraft-libs \
-          --fat-include-installer-libs
-        
-        mv "neoforge-${VERSION}-installer-fat.jar" "neoforge-${VERSION}.jar"
-        
-    - name: Split JAR into 95MB chunks
-      run: |
-        VERSION="${{ github.event.inputs.neoforge_version }}"
-        mkdir -p installers/neoforge/${VERSION}/parts
-        
-        # Split using split command (95MB chunks to stay under 100MB limit)
-        split -b 95M "neoforge-${VERSION}.jar" "installers/neoforge/${VERSION}/parts/neoforge-${VERSION}.part."
-        
-        # Create a manifest file with reassembly instructions
-        cat > "installers/neoforge/${VERSION}/reassemble.sh" << 'EOF'
-        #!/bin/bash
-        VERSION="${{ github.event.inputs.neoforge_version }}"
-        echo "Reassembling NeoForge ${VERSION} installer..."
-        cat parts/neoforge-${VERSION}.part.* > "neoforge-${VERSION}-offline-installer.jar"
-        echo "Done! File: neoforge-${VERSION}-offline-installer.jar"
-        EOF
-        
-        chmod +x "installers/neoforge/${VERSION}/reassemble.sh"
-        
-        # Create Windows batch file for reassembly
-        cat > "installers/neoforge/${VERSION}/reassemble.bat" << 'EOF'
-        @echo off
-        set VERSION=${{ github.event.inputs.neoforge_version }}
-        echo Reassembling NeoForge %VERSION% installer...
-        copy /b parts\neoforge-%VERSION%.part.* "neoforge-%VERSION%-offline-installer.jar"
-        echo Done! File: neoforge-%VERSION%-offline-installer.jar
-        EOF
-        
-        # Create README with instructions
-        cat > "installers/neoforge/${VERSION}/README.md" << 'EOF'
-        # NeoForge ${{ github.event.inputs.neoforge_version }} Offline Installer
-        
-        This installer was split into parts because it exceeds GitHub's 100MB file size limit.
-        
-        ## How to reassemble:
-        
-        **On Linux/Mac:**
-        ```bash
-        chmod +x reassemble.sh
-        ./reassemble.sh
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      
+      - name: Build and split
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          
+          # Download and build fat installer
+          wget "https://maven.neoforged.net/releases/net/neoforged/neoforge/${VERSION}/neoforge-${VERSION}-installer.jar"
+          java -jar "neoforge-${VERSION}-installer.jar" --fat --fat-include-minecraft --fat-include-minecraft-libs --fat-include-installer-libs
+          
+          # Split into 95MB chunks
+          mkdir -p "installers/neoforge/${VERSION}"
+          split -b 95M "neoforge-${VERSION}-installer-fat.jar" "installers/neoforge/${VERSION}/part."
+          
+          # Create reassembly script
+          echo '#!/bin/bash' > "installers/neoforge/${VERSION}/reassemble.sh"
+          echo "cat part.* > neoforge-${VERSION}-offline-installer.jar" >> "installers/neoforge/${VERSION}/reassemble.sh"
+          chmod +x "installers/neoforge/${VERSION}/reassemble.sh"
+      
+      - name: Commit and push
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+          git add installers/
+          git commit -m "Add NeoForge ${{ github.event.inputs.version }} (split) [skip ci]" || echo "No changes to commit"
+          git push
