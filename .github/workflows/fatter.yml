@@ -35,10 +35,6 @@ jobs:
           mkdir -p "installers/neoforge/${VERSION}"
           split -b 95M "neoforge-${VERSION}-installer-fat.jar" "installers/neoforge/${VERSION}/neoforge-${VERSION}-installer-fat."
           
-          # Create reassembly script
-          echo '#!/bin/bash' > "installers/neoforge/${VERSION}/reassemble.sh"
-          echo "cat part.* > neoforge-${VERSION}-offline-installer.jar" >> "installers/neoforge/${VERSION}/reassemble.sh"
-          chmod +x "installers/neoforge/${VERSION}/reassemble.sh"
       
       - name: Commit and push
         run: |
