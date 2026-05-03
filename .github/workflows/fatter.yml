@@ -33,7 +33,7 @@ jobs:
           
           # Split into 95MB chunks
           mkdir -p "installers/neoforge/${VERSION}"
-          split -b 95M "neoforge-${VERSION}-installer-fat.jar" "installers/neoforge/${VERSION}/part."
+          split -b 95M "neoforge-${VERSION}-installer-fat.jar" "installers/neoforge/${VERSION}/neoforge-${VERSION}-installer-fat."
           
           # Create reassembly script
           echo '#!/bin/bash' > "installers/neoforge/${VERSION}/reassemble.sh"
