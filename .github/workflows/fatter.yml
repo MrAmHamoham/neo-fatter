@@ -1,4 +1,4 @@
-name: Split and Commit Large NeoForge Installer
+name: Split and Commit NeoForge Installer
 
 on:
   workflow_dispatch:
@@ -39,7 +39,7 @@ jobs:
         
         mv "neoforge-${VERSION}-installer-fat.jar" "neoforge-${VERSION}.jar"
         
-    - name: Split JAR into 95MB chunks (safe for GitHub)
+    - name: Split JAR into 95MB chunks
       run: |
         VERSION="${{ github.event.inputs.neoforge_version }}"
         mkdir -p installers/neoforge/${VERSION}/parts
@@ -50,8 +50,8 @@ jobs:
         # Create a manifest file with reassembly instructions
         cat > "installers/neoforge/${VERSION}/reassemble.sh" << 'EOF'
         #!/bin/bash
-        # Reassemble the NeoForge installer
-        echo "Reassembling NeoForge ${{ github.event.inputs.neoforge_version }} installer..."
+        VERSION="${{ github.event.inputs.neoforge_version }}"
+        echo "Reassembling NeoForge ${VERSION} installer..."
         cat parts/neoforge-${VERSION}.part.* > "neoforge-${VERSION}-offline-installer.jar"
         echo "Done! File: neoforge-${VERSION}-offline-installer.jar"
         EOF
@@ -61,7 +61,8 @@ jobs:
         # Create Windows batch file for reassembly
         cat > "installers/neoforge/${VERSION}/reassemble.bat" << 'EOF'
         @echo off
-        echo Reassembling NeoForge ${{ github.event.inputs.neoforge_version }} installer...
+        set VERSION=${{ github.event.inputs.neoforge_version }}
+        echo Reassembling NeoForge %VERSION% installer...
         copy /b parts\neoforge-%VERSION%.part.* "neoforge-%VERSION%-offline-installer.jar"
         echo Done! File: neoforge-%VERSION%-offline-installer.jar
         EOF
